@@ -10,16 +10,15 @@ Play in landscape.
 ## Lineups
 - Austria: Schlager (GK), Alaba, Cannavaro ’07, Arnautović, Ronaldinho ’07
 - Algeria: L. Zidane (GK), Bensebaïni, Kaká ’07, Mahrez, Henry ’07
-- At half time Sebastien comes on for whoever's losing. EA Sports: Sebastien's in the game.
+- Sebastien always starts up front for the team picked on the menu (he replaces that side's 2007 defender), with the armband and gold boots.
 
 Edit `ROSTER`, `LEGEND` and `QUIPS` near the top of the script to change names.
 
 ## Controls
-- Left thumb anywhere on the left half: move (floating stick).
-- **Shoot**: hold to power up, release to shoot. Aim with the stick; shots toward goal get a little aim help.
-- **Pass**: passes to the teammate closest to where you're pointing.
-- Without the ball: Shoot = **Sprint** (tackles harder), Pass = **Switch** player.
-- Desktop: WASD / arrows, Space = shoot, K = pass.
+- Left thumb: move. **Sprint**: hold.
+- With the ball: **Shoot** (hold to power), **Pass**, **Lob**, **Skill** (rainbow flick when running, step-over when standing).
+- Without it: **Tackle** (standing), **Slide** (front or side; from behind is a foul), **Switch**.
+- Keyboard: WASD/arrows, J shoot/tackle, K pass/switch, L lob/slide, U skill, Shift sprint.
 
 ## Hosting (needed for the friend link)
 The friend link has to point at a public URL. GitHub Pages is the easiest:
