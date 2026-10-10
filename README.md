@@ -1,6 +1,8 @@
 # Austria v Algeria
 
-A small top-down 5-a-side soccer game for the phone. One file (`index.html`), no build step.
+A 3D 5-a-side soccer game for the phone, in the style of a 2007 console game: night match, broadcast camera, goal replays. One file (`index.html`), no build step, no 3D library (hand-written WebGL). The original top-down version is `classic.html`.
+
+Play in landscape.
 
 - **Play the computer**: pick Austria or Algeria, 3-minute match.
 - **Play a friend**: tap *Play a friend*, then *Text the link*. When your friend opens it, the game starts. Your phone runs the match; theirs sends its controls over a direct peer-to-peer connection (WebRTC via PeerJS's free public signaling server).
