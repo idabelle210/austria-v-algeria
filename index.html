@@ -52,6 +52,15 @@ details ul{padding-left:18px;margin:10px 0 0}
 .big small{font-size:15px;color:var(--muted);font-style:normal;font-weight:700;display:block;margin-top:2px}
 #quit{position:fixed;left:10px;top:calc(env(safe-area-inset-top) + 8px);width:34px;height:34px;padding:0;margin:0;border-radius:50%;
   background:rgba(0,0,0,.35);color:var(--ink);font-size:16px;font-weight:700;border:1px solid rgba(255,255,255,.15)}
+#splash{flex-direction:column;cursor:pointer}
+.sp1{font-size:44px;font-weight:900;font-style:italic;letter-spacing:1px;opacity:0;animation:fin .5s .2s forwards}
+.sp2{font-size:20px;color:#bbb;margin-top:8px;opacity:0;animation:fin .4s .8s forwards}
+.sp2 s{text-decoration:none;position:relative}.sp2 s::after{content:'';position:absolute;left:-4px;right:-4px;top:52%;height:3px;background:#e4002b;transform:scaleX(0);transform-origin:left;animation:strike .3s 1.5s forwards}
+.sp3{font-size:22px;font-weight:800;color:var(--gold);margin-top:6px;opacity:0;animation:fin .4s 1.9s forwards}
+.sp4{font-size:11px;color:#666;margin-top:28px;opacity:0;animation:fin .4s 2.4s forwards}
+@keyframes fin{to{opacity:1}}
+@keyframes strike{to{transform:scaleX(1)}}
+.lu{margin:0 0 10px}.lu b{color:var(--ink)}.lu .l{color:#bfe6ff}
 </style>
 </head>
 <body>
@@ -59,6 +68,14 @@ details ul{padding-left:18px;margin:10px 0 0}
 <div id="safe"></div>
 <button id="quit" class="hidden" aria-label="Quit">✕</button>
 
+<div id="splash" class="overlay" style="background:#000;z-index:50">
+  <div style="text-align:center">
+    <div class="sp1">EA SPORTS</div>
+    <div class="sp2"><s>It’s in the game.</s></div>
+    <div class="sp3">Sebastien’s in the game.</div>
+    <div class="sp4">(not affiliated with EA. or FIFA. or, honestly, Sebastien.)</div>
+  </div>
+</div>
 <div id="menu" class="overlay">
   <div class="card">
     <div class="flags"><img data-flag="0" alt="Austria"><span>v</span><img data-flag="1" alt="Algeria"></div>
@@ -71,6 +88,10 @@ details ul{padding-left:18px;margin:10px 0 0}
     </div>
     <button id="btnCpu" style="margin-top:14px">Play the computer</button>
     <button id="btnFriend" class="ghost">Play a friend</button>
+    <details>
+      <summary>Lineups</summary>
+      <div id="lineups" style="margin-top:10px"></div>
+    </details>
     <details>
       <summary>How to play</summary>
       <ul>
@@ -118,6 +139,16 @@ const TEAMS=[
   {name:'Algeria', code:'ALG', a:'#ffffff', b:'#00703c', edge:'#00401f', gk:'#f5c400', gkEdge:'#6b5300'}
 ];
 const ROLES=['gk','df','df','fw','fw'];
+// Lineups: real 2026 squad players + stars of 2007 on loan. Index order = GK, DF, DF, FW, FW.
+const ROSTER=[['Schlager','Alaba','Cannavaro','Arnautović','Ronaldinho'],
+              ['L. Zidane','Bensebaïni','Kaká','Mahrez','Henry']];
+const LEGEND={Cannavaro:1,Ronaldinho:1,'Kaká':1,Henry:1};
+const QUIPS={Schlager:'From the keeper?!',Alaba:'Alaba from deep.',Cannavaro:'2006 Ballon d’Or. Still got it.',
+  'Arnautović':'Arnie doing Arnie things.',Ronaldinho:'Straight off the FIFA 07 cover.','L. Zidane':'Zidane. The other one.',
+  'Bensebaïni':'Bensebaïni bursts forward!',Kaká:'2007 Ballon d’Or energy.',Mahrez:'That left foot.',Henry:'Va-va-voom.',
+  Sebastien:'EA SPORTS: Sebastien’s in the game.'};
+const SEB='Sebastien';
+function pname(R,i){return (R.sub===i)?SEB:ROSTER[i<5?0:1][i%5];}
 const BASE0=[[W/2,H-2.2],[W*.27,H*.80],[W*.73,H*.80],[W*.33,H*.60],[W*.67,H*.60]];
 const KO0  =[[W/2,H-2.2],[W*.27,H*.84],[W*.73,H*.84],[W*.25,H*.60],[W*.75,H*.60]];
 const PEER_PREFIX='autalg26-';
@@ -143,11 +174,11 @@ function blankInput(){return{jx:0,jy:0,held:false,shotSeq:0,shotPow:0,passSeq:0}
 function newMatch(){
   S={players:[],ball:{x:W/2,y:H/2,vx:0,vy:0,owner:-1,spin:0},score:[0,0],time:MATCH_SECS,
      phase:'kickoff',phaseT:1.6,ctrl:[3,8],passLock:[0,0],passTarget:[-1,-1],switchCd:[0,0],
-     lastScorer:-1,kickCount:0};
+     lastScorer:-1,kickCount:0,lastTouch:-1,goalBy:-1,sub:-1,halfDone:false,firstKick:0};
   for(let i=0;i<10;i++) S.players.push({team:i<5?0:1,role:ROLES[i%5],x:0,y:0,vx:0,vy:0,dvx:0,dvy:0,
      fx:0,fy:-1,tfx:0,tfy:-1,hc:false,kickCd:0,immune:0,aiT:rnd()*.2,holdT:0});
   for(let t=0;t<2;t++) lastSeq[t]={shot:inputs[t].shotSeq,pass:inputs[t].passSeq};
-  resetKickoff(rnd()<.5?0:1);
+  S.firstKick=rnd()<.5?0:1; resetKickoff(S.firstKick);
 }
 function resetKickoff(kt){
   for(let i=0;i<10;i++){
@@ -171,7 +202,9 @@ function step(dt){
     if(S.phaseT>0) return;
     S.phase='play'; sfx('whistle',.22);
   }
-  if(S.phase==='play'){ S.time-=dt; if(S.time<=0){S.time=0; endMatch(); return;} }
+  if(S.phase==='play'){ S.time-=dt; if(S.time<=0){S.time=0; endMatch(); return;}
+    if(!S.halfDone&&S.time<=MATCH_SECS/2){halfTime();return;} }
+  if(S.phase==='half'){ S.phaseT-=dt; consumeActions(); if(S.phaseT<=0) resetKickoff(1-S.firstKick); return; }
   if(S.phase==='goal'){ S.phaseT-=dt; consumeActions();
     if(S.phaseT<=0){ if(S.time<=0){endMatch();return;} resetKickoff(1-S.lastScorer); return; } }
   for(const p of S.players){p.kickCd-=dt;p.immune-=dt;p.aiT-=dt;p.hc=false;}
@@ -182,6 +215,12 @@ function step(dt){
     if(humans[p.team]&&S.ctrl[p.team]===i) humanMove(i); else ai(i,dt);
   }
   integrate(dt); collide(); ballStep(dt);
+}
+function halfTime(){
+  S.halfDone=true; S.phase='half'; S.phaseT=3.6; sfx('whistle',.5);
+  // Super-sub: Sebastien comes on for the team that's behind (coin flip if level), replacing a forward.
+  const t=S.score[0]<S.score[1]?0:S.score[1]<S.score[0]?1:(rnd()<.5?0:1);
+  S.sub=t*5+4;
 }
 function consumeActions(){for(let t=0;t<2;t++)lastSeq[t]={shot:inputs[t].shotSeq,pass:inputs[t].passSeq};}
 function endMatch(){S.phase='end'; sfx('whistle',.9); if(mode==='demo') setTimeout(()=>{if(mode==='demo')newMatch();},2500);}
@@ -314,7 +353,7 @@ function kick(i,dx,dy,speed){
   const p=S.players[i], b=S.ball, m=hyp(dx,dy)||1; dx/=m; dy/=m;
   b.owner=-1; b.x=p.x+dx*(PR+BR+.15); b.y=p.y+dy*(PR+BR+.15);
   b.vx=dx*speed+p.vx*.25; b.vy=dy*speed+p.vy*.25;
-  p.kickCd=.3; p.fx=p.tfx=dx; p.fy=p.tfy=dy; S.kickCount++;
+  p.kickCd=.3; p.fx=p.tfx=dx; p.fy=p.tfy=dy; S.kickCount++; S.lastTouch=i;
   sfx('kick',Math.min(1,speed/50));
 }
 function shoot(i,pow,human){
@@ -354,7 +393,7 @@ function doPass(i,fx,fy,human){
 }
 function take(i){
   const p=S.players[i], b=S.ball;
-  b.owner=i; p.immune=.4; p.aiT=.15+rnd()*.2;
+  b.owner=i; S.lastTouch=i; p.immune=.4; p.aiT=.15+rnd()*.2;
   const dx=b.x-p.x, dy=b.y-p.y, d=hyp(dx,dy)||1; p.fx=p.tfx=dx/d; p.fy=p.tfy=dy/d;
   if(p.role==='gk'){p.holdT=.8;p.immune=1.3;b.vx=b.vy=0;}
   S.passLock[p.team]=0; S.passTarget[p.team]=-1;
@@ -363,7 +402,7 @@ function deflect(i){
   const p=S.players[i], b=S.ball; let nx=b.x-p.x, ny=b.y-p.y; const d=hyp(nx,ny)||1; nx/=d; ny/=d;
   const vn=b.vx*nx+b.vy*ny; if(vn<0){b.vx-=1.5*vn*nx;b.vy-=1.5*vn*ny;}
   b.vx*=.6; b.vy*=.6; b.x=p.x+nx*(PR+BR+.05); b.y=p.y+ny*(PR+BR+.05);
-  p.kickCd=.2; S.kickCount++; sfx('kick',.5);
+  p.kickCd=.2; S.kickCount++; S.lastTouch=i; sfx('kick',.5);
 }
 function inOwnBox(p){return Math.abs(p.x-W/2)<15&&(p.team===0?p.y>H-13:p.y<13);}
 function possession(dt){
@@ -458,7 +497,7 @@ function ballStep(dt){
   if(S.phase==='play') possession(dt);
 }
 function goal(t){
-  S.score[t]++; S.phase='goal'; S.phaseT=2.6; S.lastScorer=t; S.ball.owner=-1;
+  S.score[t]++; S.phase='goal'; S.phaseT=3; S.lastScorer=t; S.goalBy=S.lastTouch; S.ball.owner=-1;
   S.passTarget=[-1,-1]; sfx('goal');
 }
 
@@ -586,13 +625,21 @@ function drawHud(R){
 function drawMessage(R){
   let big='',small='',col='#fff';
   if(R.phase==='kickoff'&&mode!=='demo'){big='KICK OFF';}
-  else if(R.phase==='goal'){big='GOAL!';small=TEAMS[R.lastScorer].name;col=R.lastScorer===0?'#ff5a6e':'#4fd17f';}
+  let quip='';
+  if(R.phase==='goal'){big='GOAL!';col=R.lastScorer===0?'#ff5a6e':'#4fd17f';
+    const g=R.goalBy;
+    if(g>=0&&(g<5?0:1)!==R.lastScorer){small='Own goal, '+pname(R,g);quip='Not even FIFA 07 would forgive that.';}
+    else if(g>=0){small=pname(R,g);quip=QUIPS[small]||'';}
+    else small=TEAMS[R.lastScorer].name;}
+  else if(R.phase==='half'){big='HALF TIME';
+    if(R.sub>=0){const t=R.sub<5?0:1; small=SEB+' on for '+ROSTER[t][R.sub%5]; col=t===0?'#ff5a6e':'#4fd17f'; quip='EA SPORTS: Sebastien’s in the game.';}}
   if(!big) return;
   const [cx,cy]=ts(W/2,H/2); const y=oy+H*sc*.42;
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.font='900 italic '+Math.round(Math.min(64,cw*.15))+'px -apple-system,system-ui,sans-serif';
   ctx.lineWidth=6; ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.strokeText(big,cw/2,y); ctx.fillStyle='#fff'; ctx.fillText(big,cw/2,y);
   if(small){ctx.font='800 20px -apple-system,system-ui,sans-serif';ctx.strokeText(small,cw/2,y+44);ctx.fillStyle=col;ctx.fillText(small,cw/2,y+44);}
+  if(quip){ctx.font='italic 600 15px -apple-system,system-ui,sans-serif';ctx.lineWidth=4;ctx.strokeText(quip,cw/2,y+72);ctx.fillStyle='#fff';ctx.fillText(quip,cw/2,y+72);}
 }
 function drawControls(R){
   if(mode==='demo'||R.phase==='end') return;
@@ -623,6 +670,11 @@ function render(){
   const order=R.players.map((p,i)=>i).sort((a,b)=>ts(R.players[a].x,R.players[a].y)[1]-ts(R.players[b].x,R.players[b].y)[1]);
   for(const i of order) drawPlayer(R.players[i],R,i);
   drawBall(R.ball);
+  const lab=new Set(); if(R.phase!=='goal'&&R.phase!=='half'){if(R.ball.owner>=0) lab.add(R.ball.owner); if(mode!=='demo'&&R.ctrl) lab.add(R.ctrl[myTeam]);}
+  if(R.phase==='kickoff'&&mode!=='demo') for(let i=0;i<10;i++) lab.add(i);
+  ctx.font='700 11px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)';
+  for(const i of lab){const p=R.players[i],[x,y]=ts(p.x,p.y),n=pname(R,i);ctx.strokeText(n,x,y+PR*sc+3);
+    ctx.fillStyle=n===SEB?'#ffd84d':LEGEND[n]?'#bfe6ff':'#fff';ctx.fillText(n,x,y+PR*sc+3);}
   // charge bar over my player
   const c=charge(); const mine=R.players[R.ctrl[myTeam]];
   if(c>0&&mode!=='demo'&&R.ball.owner===R.ctrl[myTeam]){
@@ -788,12 +840,12 @@ function startOnline(role){
   }
   audioInit();
 }
-const PH=['kickoff','play','goal','end'];
+const PH=['kickoff','play','goal','end','half'];
 function pack(){
   const p=[]; for(const q of S.players){p.push(+q.x.toFixed(2),+q.y.toFixed(2),+q.fx.toFixed(2),+q.fy.toFixed(2));}
   const b=S.ball;
   return {t:'s',p,b:[+b.x.toFixed(2),+b.y.toFixed(2),b.owner,+b.spin.toFixed(1)],sc:S.score,tm:+S.time.toFixed(1),
-    ph:PH.indexOf(S.phase),ct:S.ctrl,ls:S.lastScorer,kc:S.kickCount,gt:guestTeam};
+    ph:PH.indexOf(S.phase),ct:S.ctrl,ls:S.lastScorer,kc:S.kickCount,gt:guestTeam,gb:S.goalBy,sb:S.sub};
 }
 function onNet(d){
   if(!d||typeof d!=='object') return;
@@ -811,17 +863,18 @@ function applySnap(d){
   const first=!G;
   if(first){
     myTeam=d.gt; flip=myTeam===1;
-    G={players:[],ball:{x:W/2,y:H/2,owner:-1,spin:0},score:[0,0],time:MATCH_SECS,phase:'kickoff',ctrl:[3,8],lastScorer:-1,kc:0,target:null};
+    G={players:[],ball:{x:W/2,y:H/2,owner:-1,spin:0},score:[0,0],time:MATCH_SECS,phase:'kickoff',ctrl:[3,8],lastScorer:-1,kc:0,target:null,goalBy:-1,sub:-1};
     for(let i=0;i<10;i++)G.players.push({team:i<5?0:1,role:ROLES[i%5],x:d.p[i*4],y:d.p[i*4+1],fx:d.p[i*4+2],fy:d.p[i*4+3]});
     G.ball.x=d.b[0];G.ball.y=d.b[1]; G.kc=d.kc;
     for(const k of ['shotSeq','passSeq']) local[k]=0;
   }
   const prevPhase=G.phase, prevScore=G.score[0]+G.score[1];
-  G.target=d; G.score=d.sc; G.time=d.tm; G.phase=PH[d.ph]; G.ctrl=d.ct; G.lastScorer=d.ls; G.ball.owner=d.b[2]; G.ball.spin=d.b[3];
+  G.target=d; G.score=d.sc; G.time=d.tm; G.phase=PH[d.ph]; G.ctrl=d.ct; G.lastScorer=d.ls; G.goalBy=d.gb; G.sub=d.sb; G.ball.owner=d.b[2]; G.ball.spin=d.b[3];
   if(d.kc!==G.kc){G.kc=d.kc; sfx('kick',.7);}
   if(!first){
     if(d.sc[0]+d.sc[1]>prevScore) sfx('goal');
     if(prevPhase==='kickoff'&&G.phase==='play') sfx('whistle',.22);
+    if(prevPhase!=='half'&&G.phase==='half') sfx('whistle',.5);
     if(prevPhase!=='end'&&G.phase==='end'){sfx('whistle',.9); showEnd(G.score);}
     if(prevPhase==='end'&&G.phase!=='end') hideAll();
   }
@@ -902,6 +955,10 @@ function frame(now){
 let endShown=false;
 
 /* ================= boot ================= */
+$('lineups').innerHTML=[0,1].map(t=>'<div class="lu"><b>'+TEAMS[t].name+'</b><br>'+ROSTER[t].map((n,k)=>(k===0?'GK ':'')+(LEGEND[n]?'<span class="l">'+n+' ’07</span>':n)).join(' · ')+'</div>').join('')+
+  '<div class="lu" style="font-size:12.5px">Blue names are 2007 stars on loan. At half time, Sebastien comes on for whoever’s losing (coin flip if it’s level).</div>';
+(function(){const sp=$('splash');let done=false;const end=()=>{if(done)return;done=true;sp.style.transition='opacity .4s';sp.style.opacity=0;setTimeout(()=>sp.remove(),400);};
+  sp.addEventListener('click',end);sp.addEventListener('touchstart',end,{passive:true});setTimeout(end,4200);})();
 layout(); newMatch();
 const jm=location.hash.match(/join=([a-z0-9]{4,12})/i);
 if(jm){hideAll(); if(window.Peer||LOCAL_NET) joinGame(jm[1].toLowerCase()); else {showLobby('Loading…'); window.addEventListener('peerready',()=>joinGame(jm[1].toLowerCase()),{once:true}); setTimeout(()=>{if(!window.Peer)lobbyStatus("Couldn't load the online part. Check your connection and reload.");},8000);}}

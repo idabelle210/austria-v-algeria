@@ -5,6 +5,13 @@ A small top-down 5-a-side soccer game for the phone. One file (`index.html`), no
 - **Play the computer**: pick Austria or Algeria, 3-minute match.
 - **Play a friend**: tap *Play a friend*, then *Text the link*. When your friend opens it, the game starts. Your phone runs the match; theirs sends its controls over a direct peer-to-peer connection (WebRTC via PeerJS's free public signaling server).
 
+## Lineups
+- Austria: Schlager (GK), Alaba, Cannavaro ’07, Arnautović, Ronaldinho ’07
+- Algeria: L. Zidane (GK), Bensebaïni, Kaká ’07, Mahrez, Henry ’07
+- At half time Sebastien comes on for whoever's losing. EA Sports: Sebastien's in the game.
+
+Edit `ROSTER`, `LEGEND` and `QUIPS` near the top of the script to change names.
+
 ## Controls
 - Left thumb anywhere on the left half: move (floating stick).
 - **Shoot**: hold to power up, release to shoot. Aim with the stick; shots toward goal get a little aim help.
